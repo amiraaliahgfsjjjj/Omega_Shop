@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WORLD WAR OMEGA | سامانه مدیریت و ثبت سفارش</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Vazirmatn:wght@400;500;600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{
+  --bg-void:#0a0d08; --bg-panel:#12160f; --bg-panel-2:#181d12; --bg-panel-3:#1e2415;
+  --line-hud:#2c3420; --line-hud-soft:#1c2214;
+  --brass:#c9a227; --brass-bright:#eecd52;
+  --phosphor:#7fd858; --phosphor-dim:#4c7a35;
+  --alert:#b5231a; --alert-bright:#ea4432;
+  --paper:#eae4cd; --paper-2:#ddd6b9; --ink:#221f10; --ink-soft:#4a4527;
+  --text:#dbe0cd; --text-dim:#8b9278; --text-dimmer:#5d6350;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{margin:0; background:var(--bg-void); color:var(--text); font-family:'Vazirmatn',sans-serif; direction:rtl; overflow-x:hidden;
+  background-image:radial-gradient(ellipse 80% 50% at 50% -10%, rgba(127,216,88,0.07), transparent),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);}
+.num{font-family:'Share Tech Mono',monospace; letter-spacing:0.5px; direction:ltr; unicode-bidi:isolate;}
+::selection{background:var(--brass); color:var(--ink);}
+.scanlines{position:fixed; inset:0; pointer-events:none; z-index:999; background:repeating-linear-gradient(180deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.06) 3px); mix-blend-mode:multiply; opacity:.5;}
+.vignette{position:fixed; inset:0; pointer-events:none; z-index:998; box-shadow:inset 0 0 180px rgba(0,0,0,.75);}
+
+/* top bar */
+.topbar{position:sticky; top:0; z-index:60; background:rgba(10,13,8,.9); backdrop-filter:blur(8px); border-bottom:1px solid var(--line-hud);}
+.joinbar{text-align:center; padding:7px 10px; background:var(--bg-panel-3); border-bottom:1px solid var(--line-hud-soft); font-family:'Share Tech Mono',monospace; font-size:12px;}
+.joinbar a{color:var(--brass-bright); text-decoration:none;}
+.joinbar a:hover{text-decoration:underline;}
+.navrow{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 18px;}
+.brandmark{font-family:'Black Ops One',sans-serif; font-size:15px; color:var(--brass); letter-spacing:1px; white-space:nowrap;}
+.statuspill{display:flex; align-items:center; gap:7px; font-family:'Share Tech Mono',monospace; font-size:11.5px; color:var(--phosphor); border:1px solid var(--phosphor-dim); padding:5px 12px; border-radius:20px; background:rgba(127,216,88,.06);}
+.statuspill .dot{width:7px; height:7px; border-radius:50%; background:var(--phosphor); box-shadow:0 0 8px var(--phosphor); animation:blink 1.4s ease-in-out infinite;}
+@keyframes blink{50%{opacity:.25;}}
+
+/* hero */
+.hero{position:relative; padding:52px 20px 30px; text-align:center; overflow:hidden; border-bottom:1px solid var(--line-hud);}
+.radar{position:absolute; top:50%; left:50%; width:900px; height:900px; transform:translate(-50%,-50%); border-radius:50%; opacity:.4; pointer-events:none;
+  background:repeating-radial-gradient(circle, rgba(127,216,88,0.05) 0 1px, transparent 1px 90px), conic-gradient(from 0deg, rgba(127,216,88,0.22), transparent 28%);
+  animation:spin 9s linear infinite;}
+@media (prefers-reduced-motion: reduce){.radar{animation:none;} .ticker{animation:none;}}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg);}}
+h1.title{position:relative; z-index:2; margin:0; font-family:'Black Ops One',sans-serif; font-size:clamp(2.2rem,7.5vw,5rem); line-height:.95; letter-spacing:2px; text-transform:uppercase; color:#f2ead0;
+  text-shadow:3px 3px 0 var(--alert), 6px 6px 0 rgba(0,0,0,.55), 0 0 40px rgba(201,162,39,.25);}
+.subtag{position:relative; z-index:2; font-family:'Share Tech Mono',monospace; font-size:12.5px; color:var(--brass); letter-spacing:3px; margin-top:12px;}
+.hero-sub{position:relative; z-index:2; max-width:600px; margin:16px auto 0; color:var(--text-dim); font-size:14px; line-height:2;}
+
+/* live stat bar */
+.statbar{position:sticky; top:0; z-index:55; display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line-hud); border-bottom:1px solid var(--line-hud); cursor:pointer;}
+.statbox{background:var(--bg-panel); padding:12px 10px; text-align:center;}
+.statbox .l{font-size:10.5px; color:var(--text-dimmer); letter-spacing:.5px;}
+.statbox .v{font-family:'Share Tech Mono',monospace; font-size:17px; color:var(--phosphor); margin-top:4px; direction:ltr;}
+
+main{max-width:1200px; margin:0 auto; padding:30px 18px 60px;}
+
+/* category grid */
+.section-head{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:18px; border-bottom:1px dashed var(--line-hud); padding-bottom:12px;}
+.section-head h2{font-size:clamp(1.2rem,2.4vw,1.6rem); margin:0; color:#f0ead6;}
+.section-head p{margin:5px 0 0; color:var(--text-dim); font-size:12.5px;}
+.catgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px;}
+.catcard{background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel)); border:1px solid var(--line-hud); border-radius:3px; padding:20px 16px; text-align:center; cursor:pointer; transition:all .15s;}
+.catcard:hover{border-color:var(--brass); transform:translateY(-3px);}
+.catcard .ic{font-size:34px; display:block; margin-bottom:10px;}
+.catcard h3{margin:0; font-size:14.5px; color:#eee7d0;}
+.catcard p{margin:6px 0 0; font-size:11.5px; color:var(--text-dimmer); line-height:1.8;}
+
+/* detail view */
+.detail{display:none;}
+.detail.active{display:block;}
+#gridView.hidden{display:none;}
+.backlink{display:inline-flex; align-items:center; gap:6px; background:none; border:1px solid var(--line-hud); color:var(--text-dim); font-family:'Vazirmatn',sans-serif; font-size:12.5px; padding:8px 14px; border-radius:2px; cursor:pointer; margin-bottom:18px;}
+.backlink:hover{border-color:var(--brass); color:var(--brass-bright);}
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(272px,1fr)); gap:14px;}
+.grouphead{grid-column:1/-1; font-size:13px; color:var(--brass); border-bottom:1px dashed var(--line-hud); padding-bottom:6px; margin:8px 0 -2px;}
+.grouphead:first-child{margin-top:0;}
+
+/* card */
+.card{position:relative; background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel)); border:1px solid var(--line-hud); border-radius:3px; padding:16px; display:flex; flex-direction:column; gap:10px; transition:all .15s;}
+.card:hover{border-color:var(--brass); transform:translateY(-2px);}
+.card-top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+.card-title{display:flex; align-items:center; gap:8px;}
+.card-title .ic{font-size:22px;}
+.card-title h3{margin:0; font-size:14px; color:#eee7d0; line-height:1.35;}
+.unit-badge{font-family:'Share Tech Mono',monospace; font-size:10.5px; color:var(--brass); border:1px solid var(--brass); padding:2px 7px; border-radius:2px; white-space:nowrap;}
+.pct-badge{font-family:'Share Tech Mono',monospace; font-size:10.5px; color:var(--phosphor); border:1px solid var(--phosphor-dim); padding:2px 7px; border-radius:2px; white-space:nowrap; background:rgba(127,216,88,.07); display:inline-block; width:fit-content;}
+.desc{font-size:12px; color:var(--text-dim); line-height:1.9; min-height:20px;}
+.stats{display:flex; flex-direction:column; gap:6px;}
+.stat-row{display:flex; align-items:center; gap:8px;}
+.stat-label{font-size:10.5px; color:var(--text-dimmer); width:86px; flex-shrink:0;}
+.stat-bar{flex:1; height:5px; background:var(--line-hud-soft); border-radius:2px; overflow:hidden;}
+.stat-fill{height:100%; background:linear-gradient(90deg,var(--phosphor-dim),var(--phosphor));}
+.stat-val{font-family:'Share Tech Mono',monospace; font-size:10.5px; color:var(--phosphor); width:26px; text-align:left;}
+.income-line{display:flex; justify-content:space-between; font-size:11.5px; background:rgba(127,216,88,.06); border:1px dashed var(--phosphor-dim); padding:6px 9px; border-radius:2px; color:var(--phosphor);}
+.income-line b{font-family:'Share Tech Mono',monospace;}
+.card-foot{margin-top:auto; padding-top:10px; border-top:1px dashed var(--line-hud); display:flex; align-items:center; justify-content:space-between; gap:8px;}
+.price{display:flex; flex-direction:column;}
+.price .amt{font-family:'Share Tech Mono',monospace; font-size:16px; color:var(--brass-bright); direction:ltr;}
+.price .per{font-size:10px; color:var(--text-dimmer);}
+.buy-controls{display:flex; align-items:center; gap:6px;}
+.qty-input{width:44px; text-align:center; background:var(--bg-void); border:1px solid var(--line-hud); color:var(--text); font-family:'Share Tech Mono',monospace; font-size:13px; border-radius:2px; padding:6px 2px;}
+.qty-input:focus{outline:1px solid var(--brass); border-color:var(--brass);}
+.btn-add{background:var(--brass); color:#1b1706; border:none; font-family:'Vazirmatn',sans-serif; font-weight:700; font-size:12px; padding:8px 12px; border-radius:2px; cursor:pointer; white-space:nowrap;}
+.btn-add:hover{background:var(--brass-bright);}
+.btn-add:focus-visible, .backlink:focus-visible, .catcard:focus-visible{outline:2px solid var(--phosphor); outline-offset:2px;}
+.info-tile{border:1px solid var(--line-hud); background:var(--bg-panel); border-radius:3px; padding:14px 16px; font-size:12px; color:var(--text-dim); line-height:2; margin-bottom:16px;}
+.info-tile b{color:var(--brass);}
+.pricetable{display:grid; grid-template-columns:repeat(9,1fr); gap:6px; margin-top:8px;}
+.pricetable div{background:var(--bg-panel-2); border:1px solid var(--line-hud-soft); border-radius:2px; padding:6px 4px; text-align:center; font-size:10.5px;}
+.pricetable div b{display:block; color:var(--phosphor); font-family:'Share Tech Mono',monospace; font-size:11px; margin-top:2px;}
+
+/* total divider */
+.total-divider{text-align:center; padding:34px 18px; border-top:1px solid var(--line-hud); border-bottom:1px solid var(--line-hud); background:var(--bg-panel);}
+.total-divider .l{font-size:13px; color:var(--text-dim);}
+.total-divider .s{font-size:11px; color:var(--text-dimmer); margin-top:2px;}
+.total-divider .v{font-family:'Share Tech Mono',monospace; font-size:clamp(1.8rem,5vw,2.8rem); color:var(--brass-bright); margin-top:8px; direction:ltr;}
+.tagline{text-align:center; font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text-dimmer); letter-spacing:2px; padding:16px 0 0;}
+
+/* receipt (paper) */
+.receipt-wrap{max-width:560px; margin:26px auto 0; padding:0 18px;}
+.receipt-paper{background:var(--paper); color:var(--ink); border-radius:2px; position:relative; padding:26px 24px 22px; font-family:'Vazirmatn',sans-serif; box-shadow:0 20px 60px rgba(0,0,0,.5);
+  background-image:repeating-linear-gradient(0deg, rgba(0,0,0,0.015) 0px, transparent 1px, transparent 26px);}
+.r-head{display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid var(--ink); padding-bottom:12px; margin-bottom:12px;}
+.r-head .rh-title{font-family:'Black Ops One',sans-serif; font-size:19px; letter-spacing:1px;}
+.r-head .rh-sub{font-size:10.5px; color:var(--ink-soft); margin-top:4px;}
+.r-status{border:1px solid var(--alert); color:var(--alert); font-size:10.5px; font-weight:800; padding:4px 9px; border-radius:20px; white-space:nowrap; font-family:'Share Tech Mono',monospace;}
+.r-meta{display:flex; flex-direction:column; gap:4px; font-size:11.5px; color:var(--ink-soft); margin-bottom:12px; font-family:'Share Tech Mono',monospace;}
+.r-meta div{display:flex; justify-content:space-between;}
+.r-eyebrow{font-size:9.5px; letter-spacing:2px; color:var(--ink-soft); border-top:1px dashed var(--paper-2); padding-top:10px; margin-top:6px;}
+.r-sub2{font-size:12.5px; font-weight:700; margin-top:6px; display:flex; justify-content:space-between;}
+.r-list{margin-top:10px; display:flex; flex-direction:column; gap:8px; max-height:340px; overflow-y:auto;}
+.r-row{border-bottom:1px dashed var(--paper-2); padding-bottom:7px; font-size:11.5px;}
+.r-row-top{display:flex; justify-content:space-between;}
+.r-row-top b{font-family:'Share Tech Mono',monospace;}
+.r-row-sub{font-size:10px; color:var(--ink-soft); margin-top:2px;}
+.r-empty{text-align:center; color:var(--ink-soft); font-size:12px; padding:26px 10px; line-height:2;}
+.r-totals{margin-top:12px; border-top:2px solid var(--ink); padding-top:10px;}
+.r-trow{display:flex; justify-content:space-between; font-size:12px; padding:3px 0;}
+.r-trow b{font-family:'Share Tech Mono',monospace; direction:ltr;}
+.r-trow.grand{font-size:16px; font-weight:800; border-top:1px solid var(--ink); margin-top:6px; padding-top:8px;}
+.r-foot{margin-top:14px; text-align:center; font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--ink-soft); border-top:1px dashed var(--paper-2); padding-top:10px;}
+.r-actions{display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;}
+.r-actions button{flex:1; min-width:120px; padding:11px; border-radius:2px; border:none; font-weight:700; font-size:12.5px; cursor:pointer; font-family:'Vazirmatn',sans-serif;}
+.r-copy{background:var(--ink); color:var(--paper);}
+.r-save{background:var(--brass); color:#1b1706;}
+.r-clear{background:transparent; border:1px solid var(--ink-soft) !important; color:var(--ink);}
+
+.info-section{border-top:1px solid var(--line-hud); border-bottom:1px solid var(--line-hud); background:var(--bg-panel); padding:34px 18px;}
+.info-list{max-width:640px; margin:0 auto; display:flex; flex-direction:column; gap:10px;}
+.info-row{display:flex; justify-content:space-between; align-items:center; gap:12px; background:var(--bg-panel-2); border:1px solid var(--line-hud); border-radius:3px; padding:12px 16px; flex-wrap:wrap;}
+.info-row b{color:var(--brass-bright); font-size:14px;}
+.info-row span{color:var(--text-dim); font-size:12.5px;}
+.info-note{text-align:center; margin-top:16px; font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--phosphor); letter-spacing:1px;}
+
+.fab-exit{position:fixed; bottom:20px; left:20px; z-index:70; width:52px; height:52px; border-radius:50%; background:var(--brass); color:#1b1706; border:1px solid var(--brass-bright); font-size:20px; cursor:pointer; box-shadow:0 8px 24px rgba(0,0,0,.5); display:none; align-items:center; justify-content:center;}
+.fab-exit:hover{background:var(--brass-bright);}
+.fab-exit.show{display:flex;}
+
+footer{border-top:1px solid var(--line-hud); padding:30px 18px 70px; text-align:center; color:var(--text-dimmer); font-size:11.5px; line-height:2.1;}
+footer .fbrand{font-family:'Black Ops One',sans-serif; font-size:16px; color:var(--brass); letter-spacing:1px;}
+footer a{color:var(--brass-bright); text-decoration:none;}
+footer a:hover{text-decoration:underline;}
+
+.toast{position:fixed; bottom:20px; right:20px; z-index:130; background:var(--phosphor); color:#0e1a08; padding:11px 18px; border-radius:2px; font-size:12.5px; font-weight:700; opacity:0; transform:translateY(10px); transition:all .25s; pointer-events:none; max-width:80vw;}
+.toast.show{opacity:1; transform:translateY(0);}
+@media (max-width:640px){ .card-foot{flex-direction:column; align-items:stretch; gap:10px;} .buy-controls{justify-content:space-between;} .pricetable{grid-template-columns:repeat(3,1fr);} .statbar{grid-template-columns:repeat(2,1fr);} .r-actions button{min-width:100%;} }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+
+<div class="topbar">
+  <div class="joinbar">𝐉𝐎𝐈𝐍 𝐔𝐒 ꩸⇝ <a href="https://@Gbot_Channel" target="_blank" rel="noopener">@Gbot_Channel</a></div>
+  <div class="navrow">
+    <span class="brandmark">W.W.V ▸ فرماندهی</span>
+    <span class="statuspill"><span class="dot"></span> سیستم فعال</span>
+  </div>
+</div>
+
+<section class="hero">
+  <div class="radar"></div>
+  <h1 class="title">WORLD WAR OMEGA</h1>
+  <div class="subtag">سامانه مدیریت و ثبت سفارش</div>
+  <p class="hero-sub">تجهیزات موردنظر خود را انتخاب کنید، تعداد را وارد کنید و رسید کامل سفارش را در پایین صفحه مشاهده نمایید.</p>
+</section>
+
+<div class="statbar" id="statbar" title="مشاهده رسید">
+  <div class="statbox"><div class="l">اقلام انتخاب‌شده</div><div class="v" id="sItems">0</div></div>
+  <div class="statbox"><div class="l">تعداد کل واحد</div><div class="v" id="sQty">0</div></div>
+  <div class="statbox"><div class="l">ارزش سفارش</div><div class="v" id="sVal">0 دلار</div></div>
+  <div class="statbox"><div class="l">وضعیت</div><div class="v" id="sStatus" style="color:var(--brass-bright)">آماده ثبت</div></div>
+</div>
+
+<main>
+  <div id="gridView">
+    <div class="section-head">
+      <div><h2>دسته‌بندی تجهیزات</h2><p>برای مشاهده تجهیزات، یک بخش را انتخاب کنید</p></div>
+    </div>
+    <div class="catgrid" id="catGrid"></div>
+  </div>
+  <div id="detailHost"></div>
+</main>
+
+<div class="total-divider">
+  <div class="l">ارزش کل سفارش</div>
+  <div class="s">مجموع تمام انتخاب‌های شما</div>
+  <div class="v num" id="grandVal">0 دلار</div>
+  <div class="tagline">WORLD WAR OMEGA / ORDER SYSTEM</div>
+</div>
+
+<div class="receipt-wrap">
+  <div class="receipt-paper" id="receiptPaper">
+    <div class="r-head">
+      <div><div class="rh-title">🧾 رسید سفارش</div><div class="rh-sub">گزارش کامل اقلام انتخاب‌شده</div></div>
+      <div class="r-status" id="rStatus">در انتظار</div>
+    </div>
+    <div class="r-meta">
+      <div><span>شناسه سفارش</span><b id="rOrderId" class="num">Omega-000000</b></div>
+      <div><span>زمان ثبت</span><b id="rTime" class="num">--</b></div>
+      <div><span>وضعیت سفارش</span><b id="rStatus2">در انتظار ثبت</b></div>
+    </div>
+    <div class="r-eyebrow">ORDER DETAILS</div>
+    <div class="r-sub2"><span>جزئیات تجهیزات</span><span>اقلام انتخاب‌شده: <b class="num" id="rCount">0</b></span></div>
+    <div class="r-list" id="rList"><div class="r-empty">هنوز هیچ تجهیزاتی انتخاب نشده است</div></div>
+    <div class="r-totals">
+      <div class="r-trow"><span>تعداد کل اقلام</span><b id="rTotalQty">0</b></div>
+      <div class="r-trow" id="rIncomeRow" style="display:none;"><span>سود روزانه (درآمدزا)</span><b id="rIncome">0</b></div>
+      <div class="r-trow" id="rSatRow" style="display:none;"><span>رضایت مردمی کسب‌شده</span><b id="rSat">0%</b></div>
+      <div class="r-trow grand"><span>مبلغ نهایی</span><b id="rFinal">0 دلار</b></div>
+    </div>
+    <div class="r-foot">WORLD WAR OMEGA — JOIN US ⇝ @Gbot_Channel</div>
+    <div class="r-actions">
+      <button class="r-copy" id="btnCopy">📋 کپی رسید</button>
+      <button class="r-save" id="btnSave">📸 ذخیره تصویر رسید</button>
+      <button class="r-clear" id="btnClear">🗑 پاک کردن سفارش</button>
+    </div>
+  </div>
+</div>
+
+<section class="info-section">
+  <div class="section-head" style="max-width:1200px; margin:0 auto 18px;">
+    <div><h2>ℹ️ INFO</h2><p>کانال‌ها و انجمن‌های رسمی WORLD WAR OMEGA</p></div>
+  </div>
+  <div class="info-list">
+    <div class="info-row"><b class="num">@Gbot_Channel</b><span>کانال OMEGA</span></div>
+    <div class="info-row"><b class="num"></b><span> جنگ جهانی اومگا</span></div>
+    <div class="info-row"><b class="num"></b><span>مجموعه اومگا</span></div>
+    <div class="info-row"><b class="num"></b><span>بهترین مدیریت</span></div>
+  </div>
+  <div class="info-note">(ایدی را در روبیکا سرچ کنید )</div>
+</section>
+
+<footer>
+  <div class="fbrand">WORLD WAR Omega</div>
+  Advanced Procurement &amp; Order Management System<br>
+  𝐉𝐎𝐈𝐍 𝐔𝐒 ꩸⇝ <a href="@Gbot_Channel"_blank" rel="noopener">@Gbot_Channel</a><br>
+  این سامانه یک شبیه‌سازی سرگرمی برای اقتصاد کانال «جنگ جهانی» است.
+</footer>
+
+<button class="fab-exit" id="fabExit" title="بازگشت به دسته‌بندی‌ها">➜</button>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= deterministic flavor helpers ================= */
+function hashStr(s){let h=1779033703;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19;}return h>>>0;}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
+function seededRand(seedStr){return mulberry32(hashStr(seedStr));}
+function pick(arr,r){return arr[Math.floor(r()*arr.length)%arr.length];}
+function money(n){return Math.round(n).toLocaleString('en-US')+' دلار';}
+
+/* ================= categories ================= */
+const CATS = [
+ {key:'infantry', title:'پیاده‌نظام‌ها', icon:'🪖', desc:'نیروهای پیاده و واحدهای عملیاتی'},
+ {key:'missile',  title:'تجهیزات موشکی', icon:'🚀', desc:'تجهیزات و سامانه‌های موشکی'},
+ {key:'air',      title:'تجهیزات هوایی', icon:'🛩️', desc:'جنگنده، بمب‌افکن، پهپاد و هواپیما'},
+ {key:'ground',   title:'تجهیزات زمینی', icon:'🚈', desc:'تانک، نفربر، توپخانه و خودرو'},
+ {key:'naval',    title:'تجهیزات دریایی', icon:'⛴️', desc:'ناو، کشتی، زیردریایی و شناور'},
+ {key:'defense',  title:'پدافند', icon:'🛡️', desc:'سامانه‌های دفاعی و پدافندی'},
+ {key:'border',   title:'مرزبان‌ها', icon:'🛂', desc:'نیروهای مرزی و واکنش سریع'},
+ {key:'cyber',    title:'جنگ سایبری', icon:'💻', desc:'نفوذ، شنود، رمزگذاری و دفاع سایبری'},
+ {key:'heavybomb',title:'بمب‌های قوی', icon:'💣', desc:'تجهیزات ویژه و سنگین'},
+ {key:'airbomb',  title:'بمب‌افکن و جنگنده', icon:'🧨', desc:'مهمات و تجهیزات هوایی'},
+ {key:'income',   title:'درآمدزا', icon:'💰', desc:'زیرساخت اقتصادی و منابع درآمد روزانه'},
+ {key:'satisfaction', title:'رضایت مردمی', icon:'📊', desc:'کالا و منابع مؤثر بر درصد رضایت مردم'},
+];
+
+const DESC_T = {
+ infantry:["{n} در عملیات ترکیبی زمینی آموزش دیده و آماده اعزام فوری به خط مقدم است.",
+   "{n} با تجهیزات کامل جنگی، توان بازدارندگی واحد را در درگیری‌های نزدیک افزایش می‌دهد.",
+   "{n} برای مأموریت‌های حساس و بحرانی سازمان‌دهی و تجهیز شده است.",
+   "{n} یکی از ارکان اصلی نیروی زمینی برای کنترل میدان نبرد محسوب می‌شود."],
+ missile:["{n} با سامانه هدایت پیشرفته، توان اصابت دقیق به اهداف راهبردی را دارد.",
+   "{n} در دسته سلاح‌های بازدارنده راهبردی طبقه‌بندی می‌شود.",
+   "{n} قابلیت حمل کلاهک سنگین و پرواز در برد بالا را داراست.",
+   "{n} برای درهم‌شکستن خطوط دفاعی دشمن از فاصله دور طراحی شده است."],
+ air:["{n} با پیشرفته‌ترین سامانه‌های ناوبری، برتری هوایی را در هر شرایطی تضمین می‌کند.",
+   "{n} یکی از ستون‌های اصلی نیروی هوایی برای فرافکنی قدرت در سطح جهانی است.",
+   "{n} توانایی انجام مأموریت‌های ترکیبی حمله، شناسایی و پشتیبانی را دارد.",
+   "{n} برای عملیات دوربرد و نفوذ به عمق خاک دشمن به‌کار می‌رود."],
+ ground:["{n} با زره پیشرفته و قدرت آتش بالا، ستون فقرات نیروی زمینی است.",
+   "{n} برای نبردهای سنگین زمینی و شکستن خطوط دفاعی دشمن طراحی شده است.",
+   "{n} در پیشروی ترکیبی زرهی نقش کلیدی در حفظ برتری میدانی دارد."],
+ naval:["{n} با کنترل کامل بر آب‌های آزاد، سلطه دریایی ناوگان را تضمین می‌کند.",
+   "{n} در عملیات دوربرد دریایی و پشتیبانی ناوگان نقش کلیدی ایفا می‌کند.",
+   "{n} یکی از ارکان اصلی قدرت دریایی برای فرافکنی نیرو در اقیانوس‌هاست."],
+ defense:["{n} با پوشش راداری پیشرفته، آسمان را در برابر هر تهدیدی محافظت می‌کند.",
+   "{n} یکی از قابل‌اعتمادترین سامانه‌های رهگیری در دکترین دفاعی است.",
+   "{n} توان رهگیری همزمان چند هدف را در ارتفاعات مختلف دارد."],
+ border:["{n} امنیت خطوط مرزی را در برابر هرگونه نفوذ تضمین می‌کند.",
+   "{n} با استقرار سریع، کنترل کامل منطقه مرزی را در اختیار می‌گیرد.",
+   "{n} برای پایش و واکنش لحظه‌ای در نوار مرزی سازمان‌دهی شده است."],
+ cyber:["{n} در جبهه نامرئی جنگ سایبری، زیرساخت‌های حیاتی را هدف یا محافظت می‌کند.",
+   "{n} با الگوریتم‌های پیشرفته رمزنگاری و نفوذ، برتری اطلاعاتی ایجاد می‌کند.",
+   "{n} بخشی از دیوار دفاعی دیجیتال فرماندهی محسوب می‌شود."],
+ heavybomb:["{n} یکی از مخرب‌ترین سلاح‌های زرادخانه است و تنها برای اهداف راهبردی به‌کار می‌رود.",
+   "{n} قدرت تخریبی فوق‌العاده‌ای دارد و توازن قدرت منطقه‌ای را تغییر می‌دهد.",
+   "{n} استفاده از آن تحت بالاترین سطح مجوز فرماندهی مجاز است."],
+ airbomb:["{n} برای حمل توسط ناوگان هوایی طراحی شده و در عملیات دقیق کاربرد دارد.",
+   "{n} یکی از پرکاربردترین مهمات در عملیات‌های هوا به زمین است.",
+   "{n} دقت اصابت بالایی در حمله به اهداف نقطه‌ای دارد."],
+ income:["{n} به‌عنوان یک منبع درآمد پایدار، خزانه عملیات را روزانه تقویت می‌کند.",
+   "{n} زیرساخت اقتصادی‌ست که بازگشت سرمایه سریع و درآمد مستمر تولید می‌کند.",
+   "{n} یکی از ارکان اصلی تأمین بودجه جنگی فرماندهی محسوب می‌شود."]
+};
+const STAT_SCHEMA = {
+ infantry:[['توان رزمی'],['مقاومت'],['سرعت عملیات']],
+ missile:[['برد پروازی'],['قدرت تخریب'],['دقت اصابت']],
+ air:[['سرعت پروازی'],['برد عملیاتی'],['ظرفیت سلاح']],
+ ground:[['زره'],['قدرت آتش'],['تحرک زمینی']],
+ naval:[['ظرفیت عملیاتی'],['زره دریایی'],['سرعت دریایی']],
+ defense:[['برد رهگیری'],['دقت رهگیری'],['پوشش هوایی']],
+ border:[['پوشش مرزی'],['سرعت واکنش'],['هوشیاری']],
+ cyber:[['قدرت نفوذ/دفاع'],['امنیت'],['سرعت پردازش']],
+ heavybomb:[['شعاع تخریب'],['قدرت انفجار'],['سطح خطر']],
+ airbomb:[['شعاع تخریب'],['دقت اصابت'],['سطح خطر']],
+ income:[['بازگشت سرمایه','روز'],['پایداری درآمد'],['ارزش راهبردی']],
+};
+
+/* ================= products (original catalog) ================= */
+const P = [];
+function add(cat,name,unitLabel,price,extra){P.push(Object.assign({id:cat+'-'+P.length+'-'+name.replace(/\s+/g,'_'),cat,name,unitLabel,price},extra||{}));}
+
+add('infantry','سرباز دلتا فورس','۱۰۰ نفر',8000000);
+add('infantry','پلیس اف‌بی‌آی','۱۰۰ نفر',8000000);
+add('infantry','تکاور فوق ویژه','۱۰۰ نفر',6500000);
+add('infantry','تکاور ویژه بین‌مرزی','۱۰۰ نفر',5500000);
+add('infantry','تکاور ویژه دریایی','۱۰۰ نفر',7000000);
+add('infantry','تکاور ویژه کوهستان','۱۰۰ نفر',5000000);
+add('infantry','تکاور ویژه شبانه','۱۰۰ نفر',6500000);
+add('infantry','جاسوس میدانی','۱۰۰ نفر',9500000);
+add('infantry','نیروی ویژه شب (دید در شب)','۱۰۰ نفر',8500000);
+add('infantry','تک‌تیرانداز','۱۰۰ نفر',4000000);
+add('infantry','یگان ضد زره','۱۰۰ نفر',5500000);
+add('infantry','کوماندو','۱۰۰ نفر',3000000);
+add('infantry','پزشک صحرایی ویژه','۱۰۰ نفر',2500000);
+add('infantry','سرباز سنگین','۱۰۰ نفر',6000000);
+add('infantry','دیدبان قلعه','۱۰۰ نفر',4500000);
+add('infantry','مهندس رزمی','۱۰۰ نفر',4500000);
+add('infantry','واحد ارتباطی','۱۰۰ نفر',1000000);
+add('infantry','سرباز سبک','۱۰۰ نفر',2000000);
+add('infantry','نیروی هوابرد','۱۰۰ نفر',12000000);
+add('infantry','مین ضدنفر','۱۰ عدد',5000000);
+
+add('missile','موشک هایپرسونیک','۱۰ عدد',18000000);
+add('missile','موشک قاره‌پیما','۱۰ عدد',20000000);
+add('missile','موشک ترایدنت','۱۰ عدد',15000000);
+add('missile','موشک سجیل','۱۰ عدد',12000000);
+add('missile','موشک فتاح ۲','۱۰ عدد',12000000);
+add('missile','موشک خیبرشکن ۵','۱۰ عدد',12000000);
+add('missile','موشک فتاح','۱۰ عدد',8000000);
+add('missile','موشک داربوم','۱۰ عدد',7500000);
+add('missile','موشک زلزال','۱۰ عدد',7000000);
+add('missile','موشک عماد','۱۰ عدد',6000000);
+add('missile','موشک قدر','۱۰ عدد',6000000);
+add('missile','موشک شهاب','۱۰ عدد',5000000);
+add('missile','موشک کروز تاماهاوک','۱۰ عدد',8000000);
+add('missile','موشک کروز لاکهید','۱۰ عدد',6000000);
+
+add('air','بمب‌افکن B-52','۱ عدد',50000000,{note:'ظرفیت حمل: ۲ بمب قوی + ۱۰۰ بمب دیگر'});
+add('air','بمب‌افکن B-2','۱ عدد',40000000,{note:'ظرفیت حمل: ۱ بمب قوی + ۸۰ بمب دیگر'});
+add('air','بمب‌افکن B-1','۱ عدد',35000000,{note:'ظرفیت حمل: ۱ بمب قوی + ۵۰ بمب دیگر'});
+add('air','جنگنده F-35','۱ عدد',25000000,{note:'ظرفیت حمل: ۶ راکت + ۴ بمب'});
+add('air','جنگنده F-22','۱ عدد',20000000,{note:'ظرفیت حمل: ۶ راکت + ۴ بمب'});
+add('air','جنگنده تایفون','۱ عدد',18000000,{note:'ظرفیت حمل: ۶ راکت + ۴ بمب'});
+add('air','جنگنده SU-57','۱ عدد',15000000,{note:'ظرفیت حمل: ۶ راکت + ۴ بمب'});
+add('air','جنگنده F-16','۱ عدد',14000000,{note:'ظرفیت حمل: ۶ راکت + ۴ بمب'});
+add('air','جنگنده SU-37','۱ عدد',12000000,{note:'ظرفیت حمل: ۶ راکت + ۴ بمب'});
+add('air','جنگنده میراژ ۲۰۰۰','۱ عدد',11000000,{note:'ظرفیت حمل: ۶ راکت + ۴ بمب'});
+add('air','جنگنده A-10','۱ عدد',18000000,{note:'ظرفیت حمل: ۶ راکت + ۴ بمب'});
+add('air','بالگرد MQ فایتر','۱ عدد',9000000);
+add('air','بالگرد شناسایی ضربتی','۱ عدد',10000000);
+add('air','پهپاد تهاجمی هرمس ۹۰۰','۱۰ عدد',8000000);
+add('air','پهپاد شناسایی MQ-9','۱۰ عدد',10000000);
+add('air','پهپاد انتحاری صاعقه','۱۰ عدد',3000000);
+add('air','پهپاد انتحاری شاهد ۲','۱۰ عدد',2000000);
+add('air','هواپیمای ترابری C-5','۱ عدد',10000000);
+add('air','سوخت‌رسان KC-130','۱ عدد',18000000);
+add('air','هواپیمای هوابرد C-17','۱ عدد',19000000);
+add('air','هواپیمای ترابری C-130','۱ عدد',20000000);
+add('air','جت شخصی (سفر مقامات)','۱ عدد',25000000);
+
+add('ground','تانک مرکاوا','۱۰ عدد',15000000);
+add('ground','تانک لئوپارد','۱۰ عدد',13000000);
+add('ground','تانک Kopa','۱۰ عدد',10000000);
+add('ground','تانک آرماتادا','۱۰ عدد',8000000);
+add('ground','نفربر زرهی','۱۰ عدد',8000000);
+add('ground','مین‌روب پیشرفته','۱۰ عدد',15000000);
+add('ground','توپخانه ملبورن','۱۰ عدد',14000000);
+add('ground','توپخانه هوایی ۸ لول','۱۰ عدد',12000000);
+add('ground','خودرو مسلسل‌دار فولادی','۱۰ عدد',13000000);
+add('ground','خودروی مهندسی','۱۰ عدد',8000000);
+add('ground','خودروی تدارکاتی','۱۰ عدد',6000000);
+add('ground','زره‌پوش امدادی','۱۰ عدد',8000000);
+
+add('naval','ناو هواپیمابر آبراهام لینکن','۱ عدد',60000000);
+add('naval','ناو هواپیمابر جرالد فورد','۱ عدد',50000000);
+add('naval','ناو هواپیمابر جرج بوش','۱ عدد',40000000);
+add('naval','کشتی باربری محموله تری هرومن','۱ عدد',20000000);
+add('naval','کشتی جنگی بزرگ MRT','۱ عدد',15000000);
+add('naval','کشتی جنگی KGY','۱ عدد',13000000);
+add('naval','زیردریایی QQU','۱ عدد',15000000);
+add('naval','زیردریایی سوزیو','۱ عدد',14000000);
+add('naval','زیردریایی ناپلئون','۱ عدد',30000000);
+add('naval','کشتی مین‌گذار','۱ عدد',18000000);
+add('naval','کشتی مین‌روب','۱ عدد',25000000);
+add('naval','کشتی موشک‌انداز دریا به هوا','۱ عدد',15000000);
+add('naval','شناور دیدبانی','۱ عدد',9000000);
+add('naval','کشتی تجهیزاتی FF','۱ عدد',13000000);
+add('naval','قایق پرسرعت','۱ عدد',7000000);
+add('naval','قایق جاسوسی','۱ عدد',8000000);
+add('naval','مین دریایی','۱۰ عدد',5000000);
+
+add('defense','پدافند اس-۵۰۰','۱ عدد',20000000);
+add('defense','پدافند پاتریوت','۱ عدد',15000000);
+add('defense','پدافند تاد (THAAD)','۱ عدد',13000000);
+add('defense','پدافند آرو (Arrow)','۱ عدد',10000000);
+add('defense','پدافند اس-۴۰۰','۱ عدد',8000000);
+add('defense','پدافند پانتسیر','۱ عدد',6000000);
+add('defense','پدافند گنبد آهنین','۱ عدد',25000000);
+add('defense','پدافند نسامس (NASAMS)','۱ عدد',15000000);
+
+add('border','نیروی مرزی واکنش سریع','۱۰۰ نفر',13000000);
+add('border','یگان مرزی ویژه','۱۰۰ نفر',12000000);
+add('border','گروه کنترل مرزی','۱۰۰ نفر',10000000);
+add('border','گروه گشت مرزی','۱۰۰ نفر',7000000);
+add('border','واحد مرزی شبانه','۱۰۰ نفر',5000000);
+add('border','واحد پشتیبانی مرزی','۱۰۰ نفر',4000000);
+
+add('cyber','سرور هکری مرکزی','۱ عدد',50000000);
+add('cyber','ایستگاه نفوذ سایبری','۱ عدد',40000000);
+add('cyber','دستگاه شنود شبکه','۱ عدد',40000000);
+add('cyber','ایستگاه دفاع هکری','۱ عدد',30000000);
+add('cyber','سرور رمزگذاری','۱ عدد',25000000);
+add('cyber','هکر','۱ عدد',10000000);
+add('cyber','هکر محافظ','۱ عدد',10000000);
+
+add('heavybomb','بمب قلعه براوو (شیمیایی قوی)','۱ عدد',80000000);
+add('heavybomb','بمب رومئو (صوتی قوی)','۱ عدد',80000000);
+add('heavybomb','بمب یانکی (تخریبگر متوسط)','۱ عدد',70000000);
+add('heavybomb','بمب مایک (صوتی متوسط ضدنفر)','۱ عدد',60000000);
+add('heavybomb','بمب Beeg Man (شیمیایی رو‌به‌پایین)','۳۰ عدد',80000000);
+add('heavybomb','بمب Boy Kid (صوتی رو‌به‌پایین)','۱۰ عدد',55000000);
+
+add('airbomb','بمب FOAB (قوی‌ترین بمب غیرهسته‌ای)','۱ عدد',9000000);
+add('airbomb','بمب سنگرشکن GBU-57','۱ عدد',8500000);
+add('airbomb','بمب خوشه‌ای CCM','۱ عدد',7000000);
+add('airbomb','بمب VX (شیمیایی فوق‌قوی)','۱ عدد',11000000);
+add('airbomb','بمب هدایت لیزری GR-4','۱ عدد',6000000);
+add('airbomb','راکت F-312 (هوا به هوا / هوا به زمین)','۱۰ عدد',5000000);
+
+add('income','کارخانه تولید قطعات','۱ عدد',20000000,{income:10000000});
+add('income','بانک شعبه مرکزی','۱ عدد',100000000,{income:50000000});
+add('income','میدان گازی','۱ عدد',200000000,{income:100000000});
+add('income','میدان نفتی','۱ عدد',200000000,{income:100000000});
+add('income','پالایشگاه نفت','۱ عدد',180000000,{income:60000000});
+add('income','نیروگاه گازی','۱ عدد',80000000,{income:40000000});
+add('income','نیروگاه هسته‌ای','۱ عدد',1000000000,{incomeText:'۱ بمب هسته‌ای در روز', isNuke:true});
+add('income','بندر تجاری کوچک','۱ عدد',250000000,{income:125000000});
+add('income','فرودگاه منطقه‌ای','۱ عدد',150000000,{income:75000000});
+add('income','معدن مس','۱ عدد',60000000,{income:30000000});
+add('income','دیتاسنتر بزرگ','۱ عدد',25000000,{income:12000000});
+add('income','مرکز خرید بزرگ','۱ عدد',40000000,{income:20000000});
+
+/* enrich weapon/income categories with flavor + stats */
+P.forEach(p=>{
+  const r = seededRand(p.id);
+  p.desc = pick(DESC_T[p.cat], r).replace('{n}', p.name);
+  const schema = STAT_SCHEMA[p.cat];
+  p.stats = schema.map(([label])=>{
+    let val;
+    if(p.cat==='income' && label==='بازگشت سرمایه'){ val = p.isNuke ? '—' : Math.max(1, Math.round(p.price/p.income)); }
+    else { val = 52 + Math.floor(r()*46); }
+    return {label, val};
+  });
+});
+
+/* ================= satisfaction goods (new — exact data, no invented extras) ================= */
+const SAT_GROUPS = [
+ {group:'منابع اصلی', items:[
+   ['نان و غلات (نان، گندم، برنج)','🍞',9],
+   ['نفت و گاز','🛢️',8],
+   ['آب آشامیدنی سالم','💧',7],
+   ['گوشت و پروتئین (قصابی)','🥩',6],
+   ['حبوبات (عدس، نخود، لوبیا)','🫘',5],
+ ]},
+ {group:'وسایل روزمره و مغازه‌ها', items:[
+   ['لباس و پارچه (مردم و سربازها)','👕',4],
+   ['کفش و پوتین نظامی','👞',3],
+   ['مغازه‌های بقالی کوچک','🧺',2],
+ ]},
+ {group:'حمل‌ونقل و تجهیزات', items:[
+   ['ماشین‌آلات سنگین (کامیون، قطار)','🚛',4],
+   ['هواپیماهای ترابری و جنگی','✈️',3],
+   ['کشتی‌های تجاری و نفت‌کش','🚢',2],
+   ['دوچرخه برای رفت‌وآمد مردم','🚲',1],
+ ]},
+ {group:'وسایل فرهنگی و روحیه مردم', items:[
+   ['رادیو و اخبار','📻',3],
+   ['روزنامه‌ها و مجله‌ها','📃',2],
+   ['سینما و سرگرمی','🎥',2],
+ ]},
+ {group:'کالاهای وارداتی و صادراتی', items:[
+   ['فلزات و ماشین‌آلات صنعتی','🏭',2],
+   ['دارو و تجهیزات پزشکی پیشرفته','💉',2],
+   ['اسلحه و مهمات وارداتی','🔫',3],
+ ]},
+ {group:'وسایل الکترونیکی و دیجیتال', items:[
+   ['گوشی موبایل و تبلت','📱',3],
+   ['لپ‌تاپ و کامپیوتر شخصی','💻',3],
+   ['تلویزیون و مانیتور','🖥️',2],
+   ['دوربین عکاسی و فیلمبرداری','📸',1],
+   ['کنسول بازی و سرگرمی دیجیتال','🎮',1],
+   ['هدفون و بلندگوی شخصی','🎧',1],
+ ]},
+];
+SAT_GROUPS.forEach(g=>{
+  g.items.forEach(([name,icon,pct])=>{
+    add('satisfaction', name, '۱۰۰ تا', pct*1000000, {icon, pct, group:g.group});
+  });
+});
+
+/* exact numeric unit count + noun per product, for precise receipt quantities */
+function persianToInt(s){
+  const map={'۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9'};
+  const m = s.match(/[۰-۹0-9]+/);
+  if(!m) return 1;
+  return parseInt(m[0].split('').map(ch=>map[ch]||ch).join(''),10) || 1;
+}
+P.forEach(p=>{
+  p.unitCount = persianToInt(p.unitLabel);
+  p.unitNoun = p.unitLabel.replace(/[۰-۹0-9]+/,'').trim();
+});
+
+/* ================= render category grid ================= */
+const catGrid = document.getElementById('catGrid');
+CATS.forEach(c=>{
+  const el = document.createElement('div');
+  el.className='catcard'; el.tabIndex=0;
+  el.innerHTML = `<span class="ic">${c.icon}</span><h3>${c.title}</h3><p>${c.desc}</p>`;
+  el.addEventListener('click', ()=>showCategory(c.key));
+  el.addEventListener('keypress', e=>{ if(e.key==='Enter') showCategory(c.key); });
+  catGrid.appendChild(el);
+});
+
+/* ================= render category detail sections ================= */
+const detailHost = document.getElementById('detailHost');
+CATS.forEach(c=>{
+  const items = P.filter(p=>p.cat===c.key);
+  const sec = document.createElement('div');
+  sec.className='detail'; sec.id='det-'+c.key;
+
+  let bodyHtml = '';
+  if(c.key==='satisfaction'){
+    bodyHtml += `<div class="info-tile"><b>🏵 جدول قیمت بر اساس درصد رضایت (هر ۱۰۰ تا):</b>
+      <div class="pricetable">${[1,2,3,4,5,6,7,8,9].map(p=>`<div>${p}%<b>${(p*1000000).toLocaleString('en-US')}$</b></div>`).join('')}</div>
+    </div>`;
+    bodyHtml += `<div class="grid">`;
+    SAT_GROUPS.forEach(g=>{
+      bodyHtml += `<div class="grouphead">🔷 ${g.group}</div>`;
+      g.items.forEach(([name])=>{
+        const p = items.find(it=>it.name===name);
+        bodyHtml += renderSatCard(p);
+      });
+    });
+    bodyHtml += `</div>`;
+  } else {
+    bodyHtml += `<div class="grid">${items.map(renderCard).join('')}</div>`;
+    if(c.key==='air'){
+      bodyHtml += `<div class="info-tile" style="margin-top:16px; margin-bottom:0;"><b>ℹ️ اطلاعات ظرفیت حمل ناوگان:</b> بمب‌افکن B-52 قادر به حمل ۲ بمب قوی + ۱۰۰ بمب دیگر — B-2 قادر به حمل ۱ بمب قوی + ۸۰ بمب دیگر — B-1 قادر به حمل ۱ بمب قوی + ۵۰ بمب دیگر — هر جنگنده قادر به حمل ۶ راکت و ۴ بمب است.</div>`;
+    }
+  }
+
+  sec.innerHTML = `
+    <button class="backlink" data-back="1">→ بازگشت به دسته‌بندی‌ها</button>
+    <div class="section-head"><div><h2>${c.icon} ${c.title}</h2><p>${c.desc}</p></div></div>
+    ${bodyHtml}
+  `;
+  detailHost.appendChild(sec);
+});
+
+function renderCard(p){
+  const isIncome = p.cat==='income';
+  return `
+    <div class="card">
+      <div class="card-top">
+        <div class="card-title"><span class="ic">${CATS.find(c=>c.key===p.cat).icon}</span><h3>${p.name}</h3></div>
+        <span class="unit-badge">هر ${p.unitLabel}</span>
+      </div>
+      <div class="desc">${p.desc}${p.note ? '<br><span style="color:var(--brass)">▸ '+p.note+'</span>' : ''}</div>
+      <div class="stats">
+        ${p.stats.map(s=>{
+          if(typeof s.val==='number' && s.label!=='بازگشت سرمایه'){
+            return `<div class="stat-row"><span class="stat-label">${s.label}</span><div class="stat-bar"><div class="stat-fill" style="width:${s.val}%"></div></div><span class="stat-val num">${s.val}</span></div>`;
+          }
+          return `<div class="stat-row"><span class="stat-label">${s.label}</span><div class="stat-bar" style="background:transparent"></div><span class="stat-val num" style="width:auto">${s.val}${s.val!=='—'?' روز':''}</span></div>`;
+        }).join('')}
+      </div>
+      ${isIncome ? `<div class="income-line"><span>💵 درآمد روزانه</span><b class="num">${p.isNuke ? p.incomeText : money(p.income)}</b></div>` : ''}
+      <div class="card-foot">
+        <div class="price"><span class="amt num">${money(p.price)}</span><span class="per">به ازای هر ${p.unitLabel}</span></div>
+        <div class="buy-controls">
+          <input type="number" class="qty-input" min="1" value="1" id="qty-${p.id}">
+          <button class="btn-add" data-id="${p.id}">افزودن +</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderSatCard(p){
+  return `
+    <div class="card">
+      <div class="card-top">
+        <div class="card-title"><span class="ic">${p.icon}</span><h3>${p.name}</h3></div>
+        <span class="unit-badge">هر ${p.unitLabel}</span>
+      </div>
+      <span class="pct-badge">📊 ${p.pct}% رضایت</span>
+      <div class="card-foot">
+        <div class="price"><span class="amt num">${money(p.price)}</span><span class="per">به ازای هر ${p.unitLabel}</span></div>
+        <div class="buy-controls">
+          <input type="number" class="qty-input" min="1" value="1" id="qty-${p.id}">
+          <button class="btn-add" data-id="${p.id}">افزودن +</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ================= navigation: grid <-> detail ================= */
+const gridView = document.getElementById('gridView');
+const fabExit = document.getElementById('fabExit');
+function showCategory(key){
+  gridView.classList.add('hidden');
+  document.querySelectorAll('.detail').forEach(d=>d.classList.remove('active'));
+  document.getElementById('det-'+key).classList.add('active');
+  window.scrollTo({top: document.querySelector('.statbar').offsetTop, behavior:'smooth'});
+  fabExit.classList.add('show');
+}
+function showGrid(){
+  document.querySelectorAll('.detail').forEach(d=>d.classList.remove('active'));
+  gridView.classList.remove('hidden');
+  fabExit.classList.remove('show');
+}
+detailHost.addEventListener('click', e=>{
+  if(e.target.closest('[data-back]')) showGrid();
+});
+fabExit.addEventListener('click', showGrid);
+document.getElementById('statbar').addEventListener('click', ()=>{
+  document.querySelector('.receipt-wrap').scrollIntoView({behavior:'smooth', block:'start'});
+});
+
+/* ================= cart ================= */
+const cart = {};
+function findProduct(id){ return P.find(p=>p.id===id); }
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toast._tm); toast._tm=setTimeout(()=>t.classList.remove('show'),1800);
+}
+document.addEventListener('click', e=>{
+  const btn = e.target.closest('.btn-add'); if(!btn) return;
+  const id = btn.dataset.id;
+  const qtyInput = document.getElementById('qty-'+id);
+  const qty = Math.max(1, parseInt(qtyInput.value)||1);
+  cart[id] = (cart[id]||0) + qty;
+  toast('✔ به سفارش اضافه شد');
+  render();
+});
+
+function computeTotals(){
+  let subtotal=0, dailyIncome=0, nukeCount=0, lineCount=0, satPct=0;
+  Object.entries(cart).forEach(([id,qty])=>{
+    const p = findProduct(id); if(!p) return;
+    subtotal += p.price*qty;
+    lineCount += qty;
+    if(p.cat==='income'){ if(p.isNuke) nukeCount+=qty; else dailyIncome += (p.income||0)*qty; }
+    if(p.cat==='satisfaction'){ satPct += p.pct*qty; }
+  });
+  return {subtotal, dailyIncome, nukeCount, lineCount, satPct, itemLines:Object.keys(cart).length};
+}
+
+let orderId = 'VICTOR-' + String(Math.floor(100000+Math.random()*900000));
+
+function render(){
+  const t = computeTotals();
+  document.getElementById('sItems').textContent = t.itemLines;
+  document.getElementById('sQty').textContent = t.lineCount;
+  document.getElementById('sVal').textContent = money(t.subtotal);
+  document.getElementById('sStatus').textContent = t.itemLines>0 ? 'در حال تدارک' : 'آماده ثبت';
+  document.getElementById('grandVal').textContent = money(t.subtotal);
+
+  const ids = Object.keys(cart);
+  document.getElementById('rCount').textContent = t.itemLines;
+  document.getElementById('rOrderId').textContent = orderId;
+  document.getElementById('rTotalQty').textContent = t.lineCount;
+  document.getElementById('rFinal').textContent = money(t.subtotal);
+
+  document.getElementById('rIncomeRow').style.display = t.dailyIncome>0 || t.nukeCount>0 ? 'flex':'none';
+  document.getElementById('rIncome').textContent = (t.dailyIncome>0?'+'+money(t.dailyIncome):'') + (t.nukeCount>0 ? (t.dailyIncome>0?' + ':'')+t.nukeCount+' × ☢ بمب هسته‌ای/روز':'');
+  document.getElementById('rSatRow').style.display = t.satPct>0 ? 'flex':'none';
+  document.getElementById('rSat').textContent = t.satPct+'%';
+
+  document.getElementById('rStatus').textContent = ids.length>0 ? 'فعال' : 'در انتظار';
+  document.getElementById('rStatus2').textContent = ids.length>0 ? 'فعال' : 'در انتظار ثبت';
+
+  if(ids.length===0){
+    document.getElementById('rList').innerHTML = `<div class="r-empty">هنوز هیچ تجهیزاتی انتخاب نشده است</div>`;
+    document.getElementById('rTime').textContent = '--';
+  } else {
+    document.getElementById('rList').innerHTML = ids.map(id=>{
+      const p = findProduct(id), qty = cart[id];
+      const actualQty = qty * p.unitCount;
+      return `<div class="r-row">
+        <div class="r-row-top"><span>${p.name} × ${qty} بسته</span><b class="num">${money(p.price*qty)}</b></div>
+        <div class="r-row-sub">${CATS.find(c=>c.key===p.cat).title} · هر بسته ${p.unitLabel} · فی بسته: ${money(p.price)}</div>
+        <div class="r-row-sub" style="margin-top:2px;">◂ مجموع دقیق: <b class="num" style="color:var(--ink)">${actualQty.toLocaleString('en-US')}</b> ${p.unitNoun}</div>
+      </div>`;
+    }).join('');
+    document.getElementById('rTime').textContent = new Date().toLocaleString('en-GB');
+  }
+}
+
+document.getElementById('btnClear').addEventListener('click', ()=>{
+  Object.keys(cart).forEach(k=>delete cart[k]);
+  orderId = 'VICTOR-' + String(Math.floor(100000+Math.random()*900000));
+  render();
+  toast('🗑 سفارش پاک شد');
+});
+
+document.getElementById('btnCopy').addEventListener('click', ()=>{
+  const ids = Object.keys(cart);
+  if(ids.length===0){ toast('❌ سفارشی برای کپی وجود ندارد'); return; }
+  const t = computeTotals();
+  let text = `🧾 رسید سفارش — WORLD WAR OMEGA\nشناسه سفارش: ${orderId}\nزمان: ${new Date().toLocaleString('en-GB')}\n\n`;
+  ids.forEach(id=>{ const p=findProduct(id), qty=cart[id]; const actualQty=qty*p.unitCount; text += `- ${p.name} × ${qty} بسته (هر بسته ${p.unitLabel}) = ${actualQty.toLocaleString('en-US')} ${p.unitNoun} — ${money(p.price*qty)}\n`; });
+  text += `\nتعداد کل اقلام: ${t.lineCount}\n`;
+  if(t.dailyIncome>0) text += `سود روزانه: ${money(t.dailyIncome)}\n`;
+  if(t.nukeCount>0) text += `تولید ویژه: ${t.nukeCount} × بمب هسته‌ای در روز\n`;
+  if(t.satPct>0) text += `رضایت مردمی کسب‌شده: ${t.satPct}%\n`;
+  text += `مبلغ نهایی: ${money(t.subtotal)}\n\nJOIN US ⇝ @Gbot_Channel`;
+  navigator.clipboard.writeText(text).then(()=>toast('✔ رسید کپی شد')).catch(()=>toast('❌ خطا در کپی — مرورگر اجازه نداد'));
+});
+
+document.getElementById('btnSave').addEventListener('click', ()=>{
+  const ids = Object.keys(cart);
+  if(ids.length===0){ toast('❌ سفارشی برای ذخیره وجود ندارد'); return; }
+  if(typeof html2canvas === 'undefined'){ toast('❌ خطا در بارگذاری ابزار تصویر'); return; }
+  toast('⏳ در حال ساخت تصویر...');
+  html2canvas(document.getElementById('receiptPaper'), {scale:2, backgroundColor:'#eae4cd', useCORS:true}).then(canvas=>{
+    const link = document.createElement('a');
+    link.download = orderId + '.png';
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    toast('✔ تصویر رسید ذخیره شد');
+  }).catch(()=>toast('❌ خطا در ساخت تصویر رسید'));
+});
+
+render();
+</script>
+</body>
+</html>
